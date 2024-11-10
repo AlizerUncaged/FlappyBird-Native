@@ -7,13 +7,12 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const BackgroundVideo = () => {
-     let videoAsset = require('../assets/videos/bg.mp4');
+     let videoAsset = require('../assets/videos/day-bg-low.mp4');
      const ref = useRef(null);
      const [isPlaying, setIsPlaying] = useState(true);
      const player = useVideoPlayer(videoAsset, player => {
           player.loop = true;
           player.muted = true;
-
           player.play();
      });
 
