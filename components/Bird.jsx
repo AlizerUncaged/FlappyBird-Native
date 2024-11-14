@@ -1,98 +1,66 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, Animated, StyleSheet, Dimensions, View } from 'react-native';
+import { Image, StyleSheet, Dimensions, View } from 'react-native';
 
 const { width } = Dimensions.get('window');
 const BIRD_X = width / 4;
-const FRAME_DURATION = 100; // milliseconds per frame
+const FRAME_DURATION = 100;
 const SPRITE_FRAME_WIDTH = 76;
 const SPRITE_FRAME_HEIGHT = 60;
 const TOTAL_FRAMES = 6;
-const ROTATION_THRESHOLD = 5;
-const ROTATION_UPDATE_INTERVAL = 100;
-const BLINK_DURATION = 200; // Duration of each blink cycle
+const BLINK_DURATION = 200;
 
 const Bird = ({ birdY, gravity, isFlipped = true, isInvincible = false }) => {
      const [currentFrame, setCurrentFrame] = useState(0);
-     const animationTimer = useRef(null);
-     const rotationAnim = useRef(new Animated.Value(0)).current;
-     const lastRotationUpdate = useRef(Date.now());
-     const opacityAnim = useRef(new Animated.Value(1)).current;
-     const blinkTimer = useRef(null);
+     const [isVisible, setIsVisible] = useState(true);
+     const blinkInterval = useRef(null);
+     const frameInterval = useRef(null);
 
+     const [rotation, setRotation] = useState(0);
      // Frame animation
      useEffect(() => {
-          const animate = () => {
+          frameInterval.current = setInterval(() => {
                setCurrentFrame(current => (current + 1) % TOTAL_FRAMES);
-          };
+          }, FRAME_DURATION);
 
-          animationTimer.current = setInterval(animate, FRAME_DURATION);
-
-          return () => {
-               if (animationTimer.current) {
-                    clearInterval(animationTimer.current);
-               }
-          };
+          return () => clearInterval(frameInterval.current);
      }, []);
 
-     // Blink animation when invincible
+     // Rotation based on gravity
      useEffect(() => {
-          const startBlinking = () => {
-               // Clear any existing animation
-               if (blinkTimer.current) {
-                    clearInterval(blinkTimer.current);
+          const newRotation = gravity < 0 ? -30 : Math.min(30, gravity * 2);
+          setRotation(newRotation);
+     }, [gravity]);
+
+     // Blink effect
+     useEffect(() => {
+          if (isInvincible) {
+               blinkInterval.current = setInterval(() => {
+                    setIsVisible(v => !v);
+               }, BLINK_DURATION);
+          } else {
+               setIsVisible(true);
+               if (blinkInterval.current) {
+                    clearInterval(blinkInterval.current);
                }
+          }
 
-               if (isInvincible) {
-                    // Create alternating opacity animation
-                    blinkTimer.current = setInterval(() => {
-                         Animated.sequence([
-                              Animated.timing(opacityAnim, {
-                                   toValue: 0.2,
-                                   duration: BLINK_DURATION / 2,
-                                   useNativeDriver: true,
-                              }),
-                              Animated.timing(opacityAnim, {
-                                   toValue: 1,
-                                   duration: BLINK_DURATION / 2,
-                                   useNativeDriver: true,
-                              }),
-                         ]).start();
-                    }, BLINK_DURATION);
-               } else {
-                    // Reset opacity when not invincible
-                    Animated.timing(opacityAnim, {
-                         toValue: 1,
-                         duration: 0,
-                         useNativeDriver: true,
-                    }).start();
-               }
-          };
-
-          startBlinking();
-
-          // Cleanup
           return () => {
-               if (blinkTimer.current) {
-                    clearInterval(blinkTimer.current);
+               if (blinkInterval.current) {
+                    clearInterval(blinkInterval.current);
                }
           };
-     }, [isInvincible, opacityAnim]);
+     }, [isInvincible]);
 
      return (
-          <Animated.View
+          <View
                style={[
                     styles.birdContainer,
                     {
-                         opacity: opacityAnim,
+                         opacity: isVisible ? 1 : 0.2,
                          transform: [
                               { translateY: birdY },
                               { translateX: BIRD_X },
-                              {
-                                   rotate: rotationAnim.interpolate({
-                                        inputRange: [-30, 0, 30],
-                                        outputRange: ['-30deg', '0deg', '30deg']
-                                   })
-                              },
+                              { rotate: `${rotation}deg` },
                               { scaleX: isFlipped ? -1 : 1 },
                          ],
                     },
@@ -110,7 +78,7 @@ const Bird = ({ birdY, gravity, isFlipped = true, isInvincible = false }) => {
                          resizeMode='stretch'
                     />
                </View>
-          </Animated.View>
+          </View>
      );
 };
 

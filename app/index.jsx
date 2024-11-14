@@ -1,6 +1,6 @@
 // ./app/index.jsx
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Dimensions, TouchableWithoutFeedback, Text } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, StyleSheet, Dimensions, TouchableWithoutFeedback, Text, Image, Animated } from 'react-native';
 
 import Bird from '../components/Bird';
 import BackgroundVideo from '../components/BackgroundVideo';
@@ -12,16 +12,30 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const aspectRatioLimit = 16 / 9;
 const maxGameHeight = screenWidth * aspectRatioLimit;
 const boundaryHeight = Math.max(0, (screenHeight - maxGameHeight) / 2);
+const INITIAL_BIRD_Y = screenHeight / 2 - 25; // Center position for bird
 
 const App = () => {
-     const [birdY, setBirdY] = useState(200);
+     const [birdY, setBirdY] = useState(INITIAL_BIRD_Y);
      const [gravity, setGravity] = useState(0);
      const [isGameOver, setIsGameOver] = useState(false);
-     const [gameActive, setGameActive] = useState(true);
+     const [gameActive, setGameActive] = useState(false);
      const [lives, setLives] = useState(3);
      const [score, setScore] = useState(0);
      const [isInvincible, setIsInvincible] = useState(false);
+     const titlePosition = useRef(new Animated.Value(0)).current;
+     const titleOpacity = useRef(new Animated.Value(1)).current;
 
+     // Idle animation for bird
+     useEffect(() => {
+          if (!gameActive && !isGameOver) {
+               const interval = setInterval(() => {
+                    setBirdY(y => y + Math.sin(Date.now() / 500) * 0.7);
+               }, 16);
+               return () => clearInterval(interval);
+          }
+     }, [gameActive, isGameOver]);
+
+     // Game physics
      useEffect(() => {
           if (!gameActive) return;
 
@@ -31,7 +45,6 @@ const App = () => {
                     const minY = boundaryHeight;
                     const maxY = screenHeight - boundaryHeight - 50;
 
-                    // Check if bird hits boundaries
                     if (newY <= minY || newY >= maxY) {
                          handleObstacleHit();
                          return Math.max(minY, Math.min(newY, maxY));
@@ -45,8 +58,29 @@ const App = () => {
           return () => clearInterval(interval);
      }, [gravity, gameActive, boundaryHeight]);
 
+     const animateTitle = (show) => {
+          Animated.parallel([
+               Animated.spring(titlePosition, {
+                    toValue: show ? 0 : -200,
+                    useNativeDriver: true,
+                    tension: 40,
+                    friction: 8
+               }),
+               Animated.timing(titleOpacity, {
+                    toValue: show ? 1 : 0,
+                    duration: 300,
+                    useNativeDriver: true
+               })
+          ]).start();
+     };
+
      const handleJump = useCallback(() => {
-          if (!isGameOver && gameActive) {
+          if (isGameOver) return;
+
+          if (!gameActive) {
+               setGameActive(true);
+               animateTitle(false);
+          } else {
                setGravity(-15);
           }
      }, [isGameOver, gameActive]);
@@ -59,10 +93,10 @@ const App = () => {
                if (newLives <= 0) {
                     setGameActive(false);
                     setIsGameOver(true);
+                    animateTitle(true);
                     return 0;
                }
 
-               // Set invincibility
                setIsInvincible(true);
                setTimeout(() => {
                     setIsInvincible(false);
@@ -77,13 +111,14 @@ const App = () => {
      }, []);
 
      const handleRetry = () => {
-          setBirdY(200);
+          setBirdY(INITIAL_BIRD_Y);
           setGravity(0);
           setIsGameOver(false);
-          setGameActive(true);
+          setGameActive(false);
           setLives(3);
           setScore(0);
           setIsInvincible(false);
+          animateTitle(true);
      };
 
      return (
@@ -111,6 +146,20 @@ const App = () => {
                          isInvincible={isInvincible}
                     />
 
+                    <Animated.View style={[
+                         styles.titleContainer,
+                         {
+                              transform: [{ translateY: titlePosition }],
+                              opacity: titleOpacity
+                         }
+                    ]}>
+                         <Image
+                              source={require('../assets/images/title.png')}
+                              style={styles.titleImage}
+                              resizeMode="contain"
+                         />
+                    </Animated.View>
+
                     {isGameOver && (
                          <TouchableWithoutFeedback>
                               <View style={styles.gameOverContainer}>
@@ -133,6 +182,18 @@ const styles = StyleSheet.create({
      container: {
           flex: 1,
           backgroundColor: '#70c5ce',
+     },
+     titleContainer: {
+          position: 'absolute',
+          top: 100,
+          left: 0,
+          right: 0,
+          alignItems: 'center',
+          zIndex: 2,
+     },
+     titleImage: {
+          width: screenWidth * 0.8,
+          height: 300,
      },
      gameOverContainer: {
           position: 'absolute',
