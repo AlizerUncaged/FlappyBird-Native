@@ -1,4 +1,3 @@
-// ./app/index.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, StyleSheet, Dimensions, TouchableWithoutFeedback, Text, Image, Animated } from 'react-native';
 
@@ -7,12 +6,13 @@ import BackgroundVideo from '../components/BackgroundVideo';
 import Obstacles from '../components/Obstacles';
 import Boundaries from '../components/Boundaries';
 import StatusBar from '../components/StatusBar';
+import { Platform } from 'react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const aspectRatioLimit = 16 / 9;
 const maxGameHeight = screenWidth * aspectRatioLimit;
 const boundaryHeight = Math.max(0, (screenHeight - maxGameHeight) / 2);
-const INITIAL_BIRD_Y = screenHeight / 2 - 25; // Center position for bird
+const INITIAL_BIRD_Y = screenHeight / 2 - 25;
 
 const App = () => {
      const [birdY, setBirdY] = useState(INITIAL_BIRD_Y);
@@ -21,11 +21,11 @@ const App = () => {
      const [gameActive, setGameActive] = useState(false);
      const [lives, setLives] = useState(3);
      const [score, setScore] = useState(0);
+     const [highScore, setHighScore] = useState(0);
      const [isInvincible, setIsInvincible] = useState(false);
-     const titlePosition = useRef(new Animated.Value(0)).current;
-     const titleOpacity = useRef(new Animated.Value(1)).current;
+     const [titleVisible, setTitleVisible] = useState(true);
+     const [scoreScale, setScoreScale] = useState(1);
 
-     // Idle animation for bird
      useEffect(() => {
           if (!gameActive && !isGameOver) {
                const interval = setInterval(() => {
@@ -35,7 +35,30 @@ const App = () => {
           }
      }, [gameActive, isGameOver]);
 
-     // Game physics
+     useEffect(() => {
+          if (Platform.OS === 'web') {
+               const handleKeyPress = (e) => {
+                    if ((e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') && gameActive && !isGameOver) {
+                         e.preventDefault();
+                         setGravity(-15);
+                    }
+               };
+
+               window.addEventListener('keydown', handleKeyPress);
+               return () => window.removeEventListener('keydown', handleKeyPress);
+          }
+     }, [gameActive, isGameOver]);
+
+     useEffect(() => {
+          if (Platform.OS === 'web') {
+               const preventDefault = (e) => e.preventDefault();
+               window.addEventListener('contextmenu', preventDefault);
+               return () => window.removeEventListener('contextmenu', preventDefault);
+          }
+     }, []);
+
+
+
      useEffect(() => {
           if (!gameActive) return;
 
@@ -58,24 +81,19 @@ const App = () => {
           return () => clearInterval(interval);
      }, [gravity, gameActive, boundaryHeight]);
 
+
      const animateTitle = (show) => {
-          Animated.parallel([
-               Animated.spring(titlePosition, {
-                    toValue: show ? 0 : -200,
-                    useNativeDriver: true,
-                    tension: 40,
-                    friction: 8
-               }),
-               Animated.timing(titleOpacity, {
-                    toValue: show ? 1 : 0,
-                    duration: 300,
-                    useNativeDriver: true
-               })
-          ]).start();
+          setTitleVisible(show);
      };
 
-     const handleJump = useCallback(() => {
+     const handleJump = useCallback((e) => {
           if (isGameOver) return;
+
+          // Web-specific event handling
+          if (Platform.OS === 'web' && e) {
+               e.preventDefault();
+               e.stopPropagation();
+          }
 
           if (!gameActive) {
                setGameActive(true);
@@ -93,6 +111,7 @@ const App = () => {
                if (newLives <= 0) {
                     setGameActive(false);
                     setIsGameOver(true);
+                    setHighScore(current => Math.max(current, score));
                     animateTitle(true);
                     return 0;
                }
@@ -104,10 +123,12 @@ const App = () => {
 
                return newLives;
           });
-     }, [isInvincible]);
+     }, [isInvincible, score]);
 
      const handleScore = useCallback((points) => {
           setScore(prev => prev + points);
+          setScoreScale(1.2);
+          setTimeout(() => setScoreScale(1), 200);
      }, []);
 
      const handleRetry = () => {
@@ -130,7 +151,15 @@ const App = () => {
 
                     <Boundaries maxHeight={screenHeight} />
 
-                    <StatusBar lives={lives} score={score} />
+                    <View pointerEvents="none">
+                         <StatusBar
+                              lives={lives}
+                              score={score}
+                              highScore={highScore}
+                              showHighScore={!gameActive || isGameOver}
+                              scoreScale={scoreScale}
+                         />
+                    </View>
 
                     <Bird
                          birdY={birdY}
@@ -146,26 +175,36 @@ const App = () => {
                          isInvincible={isInvincible}
                     />
 
-                    <Animated.View style={[
-                         styles.titleContainer,
-                         {
-                              transform: [{ translateY: titlePosition }],
-                              opacity: titleOpacity
-                         }
-                    ]}>
+                    <View
+                         style={[
+                              styles.titleContainer,
+                              titleVisible ? styles.titleVisible : styles.titleHidden
+                         ]}
+                    >
                          <Image
                               source={require('../assets/images/title.png')}
                               style={styles.titleImage}
                               resizeMode="contain"
                          />
-                    </Animated.View>
+                         {!gameActive && !isGameOver && (
+                              <Text style={styles.startText}>TAP TO START!</Text>
+                         )}
+                    </View>
 
                     {isGameOver && (
                          <TouchableWithoutFeedback>
                               <View style={styles.gameOverContainer}>
                                    <Text style={styles.gameOverText}>GAME OVER</Text>
-                                   <Text style={styles.scoreText}>Final Score: {score}</Text>
-                                   <TouchableWithoutFeedback onPress={handleRetry}>
+                                   <Text style={styles.scoreText}>Score: {score}</Text>
+                                   {score >= highScore && (
+                                        <Text style={styles.newHighScoreText}>NEW HIGH SCORE!</Text>
+                                   )}
+                                   <TouchableWithoutFeedback
+                                        onPress={(e) => {
+                                             if (Platform.OS === 'web') e.stopPropagation();
+                                             handleRetry();
+                                        }}
+                                   >
                                         <View style={styles.retryButton}>
                                              <Text style={styles.retryText}>RETRY</Text>
                                         </View>
@@ -182,6 +221,11 @@ const styles = StyleSheet.create({
      container: {
           flex: 1,
           backgroundColor: '#70c5ce',
+          ...(Platform.OS === 'web' ? {
+               userSelect: 'none',
+               WebkitUserSelect: 'none',
+               WebkitTouchCallout: 'none',
+          } : {})
      },
      titleContainer: {
           position: 'absolute',
@@ -190,10 +234,26 @@ const styles = StyleSheet.create({
           right: 0,
           alignItems: 'center',
           zIndex: 2,
+          transition: 'all 0.3s ease-out',
      },
      titleImage: {
           width: screenWidth * 0.8,
           height: 300,
+     },
+     titleVisible: {
+          transform: 'translateY(0)',
+     },
+     titleHidden: {
+          transform: 'translateY(-400px)',
+     },
+     startText: {
+          fontSize: 24,
+          fontWeight: 'bold',
+          color: 'white',
+          marginTop: 20,
+          textShadowColor: 'rgba(0, 0, 0, 0.75)',
+          textShadowOffset: { width: 2, height: 2 },
+          textShadowRadius: 5,
      },
      gameOverContainer: {
           position: 'absolute',
@@ -211,12 +271,29 @@ const styles = StyleSheet.create({
           fontWeight: 'bold',
           color: 'white',
           marginBottom: 20,
+          textShadowColor: 'rgba(0, 0, 0, 0.75)',
+          textShadowOffset: { width: 2, height: 2 },
+          textShadowRadius: 5,
      },
      scoreText: {
           fontSize: 32,
           fontWeight: 'bold',
           color: 'white',
+          marginBottom: 10,
+          textShadowColor: 'rgba(0, 0, 0, 0.75)',
+          textShadowOffset: { width: 1, height: 1 },
+          textShadowRadius: 3,
+          transition: 'transform 0.2s ease-out',
+          transform: `scale(${props => props.scale})`,
+     },
+     newHighScoreText: {
+          fontSize: 36,
+          fontWeight: 'bold',
+          color: '#FFD700',
           marginBottom: 30,
+          textShadowColor: 'rgba(0, 0, 0, 0.75)',
+          textShadowOffset: { width: 2, height: 2 },
+          textShadowRadius: 5,
      },
      retryButton: {
           backgroundColor: 'white',
