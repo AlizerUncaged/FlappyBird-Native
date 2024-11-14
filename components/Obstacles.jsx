@@ -38,29 +38,44 @@ const Obstacles = React.memo(({ onGameOver, birdY, isActive, onScore, isInvincib
           const randomIndex = Math.floor(Math.random() * obstacleImages.length);
           return obstacleImages[randomIndex];
      };
-
      const animateObstacleGap = (obstacleId) => {
           if (!gapAnimations.has(obstacleId)) {
                const topAnim = new Animated.Value(0);
                const bottomAnim = new Animated.Value(0);
-               gapAnimations.set(obstacleId, { top: topAnim, bottom: bottomAnim });
+
+               // Store the target values
+               const topTarget = -100;
+               const bottomTarget = 100;
+
+               gapAnimations.set(obstacleId, {
+                    top: topAnim,
+                    bottom: bottomAnim,
+                    // Store static positions
+                    staticTop: topTarget,
+                    staticBottom: bottomTarget
+               });
 
                Animated.parallel([
                     Animated.timing(topAnim, {
-                         toValue: -100,
+                         toValue: topTarget,
                          duration: 500,
                          useNativeDriver: true,
                     }),
                     Animated.timing(bottomAnim, {
-                         toValue: 100,
+                         toValue: bottomTarget,
                          duration: 500,
                          useNativeDriver: true,
                     }),
                ]).start(() => {
-                    gapAnimations.delete(obstacleId);
+                    // Instead of deleting, just mark animation as complete
+                    const animation = gapAnimations.get(obstacleId);
+                    if (animation) {
+                         animation.completed = true;
+                    }
                });
           }
      };
+
 
      useEffect(() => {
           if (!isActive) {
