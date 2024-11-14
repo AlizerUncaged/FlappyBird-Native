@@ -20,7 +20,8 @@ const obstacleImages = [
      require('../assets/images/obstacles/3.png'),
 ];
 
-const Obstacles = ({ onGameOver, birdY, isActive, onScore, isInvincible }) => {
+
+const Obstacles = React.memo(({ onGameOver, birdY, isActive, onScore, isInvincible }) => {
      const [obstacles, setObstacles] = useState([]);
      const gameRunning = useRef(true);
      const passedObstacles = useRef(new Set());
@@ -33,7 +34,10 @@ const Obstacles = ({ onGameOver, birdY, isActive, onScore, isInvincible }) => {
           return Math.floor(Math.random() * (maxGapPosition - minGapPosition) + minGapPosition);
      };
 
-     const getRandomImage = () => obstacleImages[Math.floor(Math.random() * obstacleImages.length)];
+     const getRandomImage = () => {
+          const randomIndex = Math.floor(Math.random() * obstacleImages.length);
+          return obstacleImages[randomIndex];
+     };
 
      const animateObstacleGap = (obstacleId) => {
           if (!gapAnimations.has(obstacleId)) {
@@ -52,7 +56,9 @@ const Obstacles = ({ onGameOver, birdY, isActive, onScore, isInvincible }) => {
                          duration: 500,
                          useNativeDriver: true,
                     }),
-               ]).start();
+               ]).start(() => {
+                    gapAnimations.delete(obstacleId);
+               });
           }
      };
 
@@ -74,7 +80,6 @@ const Obstacles = ({ onGameOver, birdY, isActive, onScore, isInvincible }) => {
 
           const moveAndSpawnObstacles = () => {
                const now = Date.now();
-               const deltaTime = now - lastUpdate.current;
                lastUpdate.current = now;
 
                setObstacles(prevObstacles => {
@@ -141,7 +146,6 @@ const Obstacles = ({ onGameOver, birdY, isActive, onScore, isInvincible }) => {
           const collisionInterval = setInterval(checkCollision, 16);
           return () => clearInterval(collisionInterval);
      }, [birdY, obstacles, onGameOver, isActive, isInvincible]);
-
      return (
           <>
                {obstacles.map(({ gapY, x, id, image }) => {
@@ -160,6 +164,7 @@ const Obstacles = ({ onGameOver, birdY, isActive, onScore, isInvincible }) => {
                                              source={image}
                                              style={[styles.obstacleImage, { transform: [{ scaleY: -1 }] }]}
                                              resizeMode="stretch"
+                                             fadeDuration={0}
                                         />
                                    </View>
                               </Animated.View>
@@ -181,6 +186,7 @@ const Obstacles = ({ onGameOver, birdY, isActive, onScore, isInvincible }) => {
                                              source={image}
                                              style={styles.obstacleImage}
                                              resizeMode="stretch"
+                                             fadeDuration={0}
                                         />
                                    </View>
                               </Animated.View>
@@ -189,7 +195,7 @@ const Obstacles = ({ onGameOver, birdY, isActive, onScore, isInvincible }) => {
                })}
           </>
      );
-};
+});
 
 const styles = StyleSheet.create({
      obstacleContainer: {
