@@ -15,10 +15,20 @@ const OBSTACLE_OVERFLOW = 0.7;
 const MAX_OBSTACLE_HEIGHT = (OBSTACLE_WIDTH / OBSTACLE_IMAGE_WIDTH) * OBSTACLE_IMAGE_HEIGHT * (1 + OBSTACLE_OVERFLOW);
 
 const obstacleImages = [
-     require('../assets/images/obstacles/1.png'),
-     require('../assets/images/obstacles/2.png'),
-     require('../assets/images/obstacles/3.png'),
+     {
+          source: require('../assets/images/obstacles/1.png'),
+          default: require('../assets/images/obstacles/1.png')
+     },
+     {
+          source: require('../assets/images/obstacles/2.png'),
+          default: require('../assets/images/obstacles/2.png')
+     },
+     {
+          source: require('../assets/images/obstacles/3.png'),
+          default: require('../assets/images/obstacles/3.png')
+     }
 ];
+
 
 
 const Obstacles = React.memo(({ onGameOver, birdY, isActive, onScore, isInvincible }) => {
@@ -161,6 +171,9 @@ const Obstacles = React.memo(({ onGameOver, birdY, isActive, onScore, isInvincib
           const collisionInterval = setInterval(checkCollision, 16);
           return () => clearInterval(collisionInterval);
      }, [birdY, obstacles, onGameOver, isActive, isInvincible]);
+
+
+
      return (
           <>
                {obstacles.map(({ gapY, x, id, image }) => {
@@ -176,7 +189,8 @@ const Obstacles = React.memo(({ onGameOver, birdY, isActive, onScore, isInvincib
                               >
                                    <View style={styles.topObstacleImageContainer}>
                                         <Image
-                                             source={image}
+                                             source={image.source}
+                                             defaultSource={image.default}
                                              style={[styles.obstacleImage, { transform: [{ scaleY: -1 }] }]}
                                              resizeMode="stretch"
                                              fadeDuration={0}
@@ -198,7 +212,8 @@ const Obstacles = React.memo(({ onGameOver, birdY, isActive, onScore, isInvincib
                               >
                                    <View style={styles.bottomObstacleImageContainer}>
                                         <Image
-                                             source={image}
+                                             source={image.source}
+                                             defaultSource={image.default}
                                              style={styles.obstacleImage}
                                              resizeMode="stretch"
                                              fadeDuration={0}
