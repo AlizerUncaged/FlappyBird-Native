@@ -9,7 +9,7 @@ const SPRITE_FRAME_HEIGHT = 60;
 const TOTAL_FRAMES = 6;
 const BLINK_DURATION = 200;
 
-const Bird = ({ birdY, gravity, isFlipped = true, isInvincible = false }) => {
+const Bird = ({ birdY, gravity, isFlipped = true, isInvincible = false, isCheatMode = false }) => {
      const [currentFrame, setCurrentFrame] = useState(0);
      const [isVisible, setIsVisible] = useState(true);
      const blinkInterval = useRef(null);
@@ -33,7 +33,7 @@ const Bird = ({ birdY, gravity, isFlipped = true, isInvincible = false }) => {
 
      // Blink effect
      useEffect(() => {
-          if (isInvincible) {
+          if (isInvincible && !isCheatMode) {
                blinkInterval.current = setInterval(() => {
                     setIsVisible(v => !v);
                }, BLINK_DURATION);

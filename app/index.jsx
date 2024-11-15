@@ -9,13 +9,16 @@ import StatusBar from '../components/StatusBar';
 import { Platform } from 'react-native';
 import { ImagePreloader } from '../components/ImagePreloader';
 import { TouchableOpacity } from 'react-native';
-
+import { PlayerNameInput } from '../components/PlayerNameInput';
+import { HighScores } from '../components/HighScores';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const aspectRatioLimit = 16 / 9;
 const maxGameHeight = screenWidth * aspectRatioLimit;
 const boundaryHeight = Math.max(0, (screenHeight - maxGameHeight) / 2);
 const INITIAL_BIRD_Y = screenHeight / 2 - 25;
 
+const SCORES_STORAGE_KEY = 'flappybird_highscores';
 const GitHubButton = () => {
      const handlePress = () => {
           Linking.openURL('https://github.com/AlizerUncaged');
@@ -47,6 +50,15 @@ const App = () => {
      const [isInvincible, setIsInvincible] = useState(false);
      const [titleVisible, setTitleVisible] = useState(true);
      const [scoreScale, setScoreScale] = useState(1);
+     const [cheatActive, setCheatActive] = useState(false);
+     const keySequence = useRef('');
+     const [playerName, setPlayerName] = useState('');
+     const [highScores, setHighScores] = useState([]);
+
+     const CHEAT_CODE = 'icpep';
+     useEffect(() => {
+          loadHighScores();
+     }, []);
 
      useEffect(() => {
           if (!gameActive && !isGameOver) {
@@ -57,12 +69,27 @@ const App = () => {
           }
      }, [gameActive, isGameOver]);
 
+
      useEffect(() => {
           if (Platform.OS === 'web') {
                const handleKeyPress = (e) => {
+                    // Handle jump controls
                     if ((e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') && gameActive && !isGameOver) {
                          e.preventDefault();
                          setGravity(-15);
+                    }
+
+                    // Handle cheat code
+                    keySequence.current += e.key.toLowerCase();
+                    if (keySequence.current.length > CHEAT_CODE.length) {
+                         keySequence.current = keySequence.current.slice(-CHEAT_CODE.length);
+                    }
+
+                    if (keySequence.current === CHEAT_CODE) {
+                         setCheatActive(true);
+                         setIsInvincible(true);
+                         // Visual feedback that cheat is activated
+                         console.log('Cheat activated!');
                     }
                };
 
@@ -103,6 +130,60 @@ const App = () => {
           return () => clearInterval(interval);
      }, [gravity, gameActive, boundaryHeight]);
 
+     const loadHighScores = async () => {
+          try {
+               const scores = await AsyncStorage.getItem(SCORES_STORAGE_KEY);
+               if (scores) {
+                    setHighScores(JSON.parse(scores));
+               }
+          } catch (error) {
+               console.error('Error loading scores:', error);
+          }
+     };
+
+     const saveHighScore = async () => {
+          try {
+               const currentPlayerName = playerName || 'Anonymous';
+
+               // Find if player already has a high score
+               const existingScoreIndex = highScores.findIndex(
+                    score => score.name.toLowerCase() === currentPlayerName.toLowerCase()
+               );
+
+               let newScores = [...highScores];
+
+               if (existingScoreIndex !== -1) {
+                    // Player already exists in high scores
+                    const existingScore = highScores[existingScoreIndex];
+
+                    // Only update if new score is higher
+                    if (score > existingScore.score) {
+                         newScores[existingScoreIndex] = {
+                              name: currentPlayerName,
+                              score: score,
+                              date: new Date().toISOString()
+                         };
+                    }
+               } else {
+                    // New player, add their score
+                    newScores.push({
+                         name: currentPlayerName,
+                         score: score,
+                         date: new Date().toISOString()
+                    });
+               }
+
+               // Sort scores and keep top 100
+               newScores = newScores
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 100);
+
+               await AsyncStorage.setItem(SCORES_STORAGE_KEY, JSON.stringify(newScores));
+               setHighScores(newScores);
+          } catch (error) {
+               console.error('Error saving score:', error);
+          }
+     };
 
      const animateTitle = (show) => {
           setTitleVisible(show);
@@ -126,7 +207,7 @@ const App = () => {
      }, [isGameOver, gameActive]);
 
      const handleObstacleHit = useCallback(() => {
-          if (isInvincible) return;
+          if (isInvincible || cheatActive) return;
 
           setLives(prev => {
                const newLives = prev - 1;
@@ -134,6 +215,7 @@ const App = () => {
                     setGameActive(false);
                     setIsGameOver(true);
                     setHighScore(current => Math.max(current, score));
+                    saveHighScore(); // Save score when game ends
                     animateTitle(true);
                     return 0;
                }
@@ -145,13 +227,13 @@ const App = () => {
 
                return newLives;
           });
-     }, [isInvincible, score]);
+     }, [isInvincible, score, cheatActive]);
 
      const handleScore = useCallback((points) => {
-          setScore(prev => prev + points);
+          setScore(prev => prev + (cheatActive ? 3 : points));
           setScoreScale(1.2);
           setTimeout(() => setScoreScale(1), 200);
-     }, []);
+     }, [cheatActive]);
 
      const handleRetry = () => {
           setBirdY(INITIAL_BIRD_Y);
@@ -192,6 +274,7 @@ const App = () => {
                          birdY={birdY}
                          gravity={gravity}
                          isInvincible={isInvincible}
+                         isCheatMode={cheatActive}
                     />
 
                     <Obstacles
@@ -213,9 +296,14 @@ const App = () => {
                               style={styles.titleImage}
                               resizeMode="contain"
                          />
-                         <Text style={styles.creditText}></Text>
                          {!gameActive && !isGameOver && (
-                              <Text style={styles.startText}>TAP TO START!</Text>
+                              <>
+                                   <PlayerNameInput
+                                        playerName={playerName}
+                                        onNameChange={setPlayerName}
+                                   />
+                                   <Text style={styles.startText}>TAP TO START!</Text>
+                              </>
                          )}
                     </View>
 
@@ -227,12 +315,8 @@ const App = () => {
                                    {score >= highScore && (
                                         <Text style={styles.newHighScoreText}>NEW HIGH SCORE!</Text>
                                    )}
-                                   <TouchableWithoutFeedback
-                                        onPress={(e) => {
-                                             if (Platform.OS === 'web') e.stopPropagation();
-                                             handleRetry();
-                                        }}
-                                   >
+                                   <HighScores scores={highScores} />
+                                   <TouchableWithoutFeedback onPress={handleRetry}>
                                         <View style={styles.retryButton}>
                                              <Text style={styles.retryText}>RETRY</Text>
                                         </View>
