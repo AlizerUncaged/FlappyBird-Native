@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, StyleSheet, Dimensions, TouchableWithoutFeedback, Text, Image, Animated } from 'react-native';
+import { View, StyleSheet, Dimensions, TouchableWithoutFeedback, Text, Image, Animated, Linking } from 'react-native';
 
 import Bird from '../components/Bird';
 import BackgroundVideo from '../components/BackgroundVideo';
@@ -7,6 +7,8 @@ import Obstacles from '../components/Obstacles';
 import Boundaries from '../components/Boundaries';
 import StatusBar from '../components/StatusBar';
 import { Platform } from 'react-native';
+import { ImagePreloader } from '../components/ImagePreloader';
+import { TouchableOpacity } from 'react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const aspectRatioLimit = 16 / 9;
@@ -14,6 +16,26 @@ const maxGameHeight = screenWidth * aspectRatioLimit;
 const boundaryHeight = Math.max(0, (screenHeight - maxGameHeight) / 2);
 const INITIAL_BIRD_Y = screenHeight / 2 - 25;
 
+const GitHubButton = () => {
+     const handlePress = () => {
+          Linking.openURL('https://github.com/AlizerUncaged');
+     };
+
+     return (
+          <TouchableOpacity
+               onPress={handlePress}
+               style={styles.githubButton}
+               activeOpacity={0.7}
+          >
+               <Image
+                    source={require('../assets/images/github-mark-white.png')} // Make sure to add this image to your assets
+                    style={styles.githubLogo}
+                    resizeMode="contain"
+               />
+               <Text style={styles.githubText}>Floyd</Text>
+          </TouchableOpacity>
+     );
+};
 const App = () => {
      const [birdY, setBirdY] = useState(INITIAL_BIRD_Y);
      const [gravity, setGravity] = useState(0);
@@ -145,8 +167,13 @@ const App = () => {
      return (
           <TouchableWithoutFeedback onPress={handleJump}>
                <View style={styles.container}>
+                    <ImagePreloader></ImagePreloader>
                     <View style={StyleSheet.absoluteFill}>
                          <BackgroundVideo />
+                    </View>
+
+                    <View style={styles.githubContainer}>
+                         <GitHubButton />
                     </View>
 
                     <Boundaries maxHeight={screenHeight} />
@@ -186,6 +213,7 @@ const App = () => {
                               style={styles.titleImage}
                               resizeMode="contain"
                          />
+                         <Text style={styles.creditText}></Text>
                          {!gameActive && !isGameOver && (
                               <Text style={styles.startText}>TAP TO START!</Text>
                          )}
@@ -306,6 +334,43 @@ const styles = StyleSheet.create({
           fontSize: 24,
           fontWeight: 'bold',
           color: 'black',
+     }, githubContainer: {
+          position: 'absolute',
+          bottom: 20,
+          left: 20,
+          zIndex: 10, // Ensure it stays above other elements
+     },
+     githubButton: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+          borderRadius: 20,
+          borderWidth: 1,
+          borderColor: 'rgba(255, 255, 255, 0.2)',
+     },
+     githubLogo: {
+          width: 24,
+          height: 24,
+          marginRight: 8,
+     },
+     githubText: {
+          color: 'white',
+          fontSize: 14,
+          fontWeight: '500',
+          textShadowColor: 'rgba(0, 0, 0, 0.75)',
+          textShadowOffset: { width: 1, height: 1 },
+          textShadowRadius: 3,
+     }, creditText: {
+          fontSize: 16,
+          color: 'white',
+          marginTop: 20, // Negative margin to bring it closer to the title
+          marginBottom: 20,
+          textShadowColor: 'rgba(0, 0, 0, 0.75)',
+          textShadowOffset: { width: 1, height: 1 },
+          textShadowRadius: 3,
+          fontStyle: 'italic',
      },
 });
 
